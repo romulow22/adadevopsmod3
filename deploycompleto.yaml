@@ -1,0 +1,556 @@
+# Criando namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nsadadevopsmod3
+
+---
+# Criando Secrets para o Minio
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-credentials
+  namespace: nsadadevopsmod3
+type: Opaque
+data:
+  #admin
+  MINIO_ROOT_USR: YWRtaW4=
+  #admin1234
+  MINIO_ROOT_PWD: YWRtaW4xMjM0
+---
+# Criando Secrets para o RabbitMQ
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rabbitmq-credentials
+  namespace: nsadadevopsmod3
+type: Opaque
+data:
+  #admin
+  RABBITMQ_ROOT_USR: YWRtaW4=
+  #admin1234
+  RABBITMQ_ROOT_PWD: YWRtaW4xMjM0
+---
+# Criando ConfigMap para o RabbitMQ
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-configmap
+  namespace: nsadadevopsmod3
+data:
+  rabbitmq.conf: |
+    listeners.tcp.default = 5672
+    management.listener.port = 15672
+    default_vhost = projetoada
+    heartbeat = 30
+    log.file = true
+    log.exchange = true
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq-pvc
+  namespace: nsadadevopsmod3
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: nsadadevopsmod3
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-pvc
+  namespace: nsadadevopsmod3
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# Criando RabbitMQ Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq-deployment
+  namespace: nsadadevopsmod3
+  labels:
+    app: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3-management
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672
+        env:
+          - name:  RABBITMQ_DEFAULT_USER
+            valueFrom:
+              secretKeyRef:
+                name:  rabbitmq-credentials
+                key:  RABBITMQ_ROOT_USR
+          - name:  RABBITMQ_DEFAULT_PASS
+            valueFrom:
+              secretKeyRef:
+                name:  rabbitmq-credentials
+                key:  RABBITMQ_ROOT_PWD
+        #envFrom:
+        #- secretRef:
+        #    name: rabbitmq-credentials
+        volumeMounts:
+        - name: rabbitmq-config
+          mountPath: /etc/rabbitmq/rabbitmq.conf
+          subPath: rabbitmq.conf
+        - name: rabbitmq-data
+          mountPath: /var/lib/rabbitmq/
+        startupProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - rabbitmq-diagnostics ping -q
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        resources:
+          limits:
+            memory: 256Mi
+            cpu: "0.4"
+          requests:
+            memory: 128Mi
+            cpu: "0.2"
+      volumes:
+      - name: rabbitmq-config
+        configMap:
+          name: rabbitmq-configmap
+      - name: rabbitmq-data
+        persistentVolumeClaim:
+          claimName: rabbitmq-pvc
+
+---
+# Criando Redis Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-deployment
+  namespace: nsadadevopsmod3
+  labels:
+      app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis/redis-stack:7.2.0-v10
+        ports:
+        - containerPort: 6379
+        - containerPort: 8001
+        env:
+          - name: REDIS_ARGS
+            value: "--save 60 1000 --appendonly yes"
+          - name: REDISTIMESERIES_ARGS
+            value: "RETENTION_POLICY=20"
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        startupProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        resources:
+          limits:
+            memory: 256Mi
+            cpu: "0.4"
+          requests:
+            memory: 128Mi
+            cpu: "0.2"
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: redis-pvc
+
+---
+#Criando Minio Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio-deployment
+  namespace: nsadadevopsmod3
+  labels:
+    app: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+      - name: minio
+        image: minio/minio:RELEASE.2024-03-07T00-43-48Z
+        args:
+        - server
+        - /data
+        - --console-address
+        - ":9001"
+        ports:
+        - containerPort: 9000
+        - containerPort: 9001
+        volumeMounts:
+        - name: minio-data
+          mountPath: /data
+        env:
+        - name: MINIO_BROWSER_REDIRECT_URL
+          value: "http://projadadevops.local/minioapi/"
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              name: minio-credentials
+              key: MINIO_ROOT_USR
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: minio-credentials
+              key: MINIO_ROOT_PWD
+        startupProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c 
+            - mc alias set myminio http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD";
+            - mc admin info myminio --insecure;
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        resources:
+          limits:
+            memory: 256Mi
+            cpu: "0.4"
+          requests:
+            memory: 128Mi
+            cpu: "0.2"
+      volumes:
+        - name: minio-data
+          persistentVolumeClaim:
+            claimName: minio-pvc
+
+---
+# 
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-service
+  namespace: nsadadevopsmod3
+spec:
+  ports:
+  - name: http
+    port: 9000
+    targetPort: 9000
+  - name: console  
+    port: 9001
+    targetPort: 9001
+  type: ClusterIP
+  selector:
+    app: minio
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: nsadadevopsmod3
+spec:
+  ports:
+  - name: console
+    port: 6379
+    targetPort: 6379
+  - name: http
+    port: 8001
+    targetPort: 8001
+  type: ClusterIP
+  selector:
+    app: redis
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-service
+  namespace: nsadadevopsmod3
+spec:
+  ports:
+  - name: api
+    port: 5672
+    targetPort: 5672
+  - name: http
+    port: 15672
+    targetPort: 15672
+  selector:
+    app: rabbitmq
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: nsadadevopsmod3
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  rules:
+  - host: projadadevops.local
+    http:
+      paths:
+      - path: "/rabbitmq"
+        pathType: Prefix
+        backend:
+          service:
+            name: rabbitmq-service
+            port:
+              number: 15672
+      - path: "/redis"
+        pathType: Prefix
+        backend:
+          service:
+            name: redis-service
+            port:
+              number: 8001
+      - path: "/minio"
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-service
+            port:
+              number: 9001
+      - path: "/minioapi(/|$)(.*)"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: minio-service
+            port:
+              number: 9000
+---
+# Criando PV para os arquivos Python
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: python-files-pv
+spec:
+  capacity:
+    storage: 50Mi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: standard
+  hostPath:
+    path: /adadevopsmod3/dockerfiles/app
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: python-files-pvc
+  namespace: nsadadevopsmod3
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Mi
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: nsadadevopsmod3
+  name: job-status-checker
+rules:
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: job-status-checker-binding
+  namespace: nsadadevopsmod3
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: job-status-checker
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: nsadadevopsmod3
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: criaambapp-job
+  namespace: nsadadevopsmod3
+  labels:
+    app: criaambapp
+spec:
+  template:
+    metadata:
+      labels:
+        app: criaambapp
+    spec:
+      initContainers:
+      - name: wait-for-minio
+        image: curlimages/curl
+        command: ["sh", "-c", "until $(curl -s -o /dev/null -w '%{http_code}' http://minio-service:9000/minio/health/live | grep -q 200); do echo waiting for minio-service; sleep 5; done"]
+      - name: wait-for-rabbitmq
+        image: curlimages/curl
+        command: ["sh", "-c", "until $(curl -s -o /dev/null -u $(echo -n $RABBITMQ_ROOT_USR:$RABBITMQ_ROOT_PWD) -w '%{http_code}' http://rabbitmq-service:15672/api/healthchecks/node | grep -q 200); do echo waiting for rabbitmq-service; sleep 5; done"]
+        envFrom:
+        - secretRef:
+            name: rabbitmq-credentials
+      - name: wait-for-redis
+        image: redis:alpine
+        command: ['sh', '-c', 'until $(redis-cli -h redis-service ping | grep -q PONG); do echo waiting for redis-service; sleep 5; done']
+      containers:
+      - name: criaambapp
+        image: localhost:5000/adadevopsmod3:baseapp
+        command: ["python3", "/appfiles/criaamb.py"]
+        #command: ["/bin/bash", "-c", "tail -f /dev/null"]
+        envFrom:
+        - secretRef:
+            name: minio-credentials
+        - secretRef:
+            name: rabbitmq-credentials
+        volumeMounts:
+        - name: python-files-volume
+          mountPath: /appfiles
+      restartPolicy: Never
+      volumes:
+      - name: python-files-volume
+        persistentVolumeClaim:
+          claimName: python-files-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: producerapp-deployment
+  namespace: nsadadevopsmod3
+  labels:
+    app: producerapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: producerapp
+  template:
+    metadata:
+      labels:
+        app: producerapp
+    spec:
+      initContainers:
+      - name: wait-for-criaamb
+        image: bitnami/kubectl
+        command: ["sh", "-c", "until kubectl get job criaambapp-job -o=jsonpath='{.status.succeeded}' | grep -q 1; do echo Waiting for criaamb job to complete; sleep 5; done"]
+      containers:
+      - name: producerapp
+        image: localhost:5000/adadevopsmod3:baseapp
+        command: ["python3", "/appfiles/producer.py"]
+        envFrom:
+        - secretRef:
+            name: minio-credentials
+        - secretRef:
+            name: rabbitmq-credentials
+        volumeMounts:
+        - name: python-files-volume
+          mountPath: /appfiles
+        resources:
+          limits:
+            memory: 256Mi
+            cpu: "0.4"
+          requests:
+            memory: 128Mi
+            cpu: "0.2"
+      volumes:
+      - name: python-files-volume
+        persistentVolumeClaim:
+          claimName: python-files-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumerapp-deployment
+  namespace: nsadadevopsmod3
+  labels:
+    app: consumerapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: consumerapp
+  template:
+    metadata:
+      labels:
+        app: consumerapp
+    spec:
+      initContainers:
+      - name: wait-for-criaamb
+        image: bitnami/kubectl
+        command: ["sh", "-c", "until kubectl get job criaambapp-job -o=jsonpath='{.status.succeeded}' | grep -q 1; do echo Waiting for criaamb job to complete; sleep 5; done"]
+      containers:
+      - name: consumerapp
+        image: localhost:5000/adadevopsmod3:baseapp
+        command: ["python3", "/appfiles/consumer.py"]
+        envFrom:
+        - secretRef:
+            name: minio-credentials
+        - secretRef:
+            name: rabbitmq-credentials
+        volumeMounts:
+        - name: python-files-volume
+          mountPath: /appfiles
+        resources:
+          limits:
+            memory: 256Mi
+            cpu: "0.4"
+          requests:
+            memory: 128Mi
+            cpu: "0.2"
+      volumes:
+      - name: python-files-volume
+        persistentVolumeClaim:
+          claimName: python-files-pvc

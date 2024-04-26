@@ -1,0 +1,138 @@
+minikube delete --all
+
+minikube kubectl -- delete -f deployment.yaml 
+
+
+minikube start --addons=registry,ingress --driver=docker --dns-domain='projadadevops.local' --insecure-registry='localhost:5000' --mount --mount-string="$HOME/adadevops/adadevopsmod3:/adadevopsmod3"  ##--alsologtostderr
+
+
+sudo bash -c "echo '$(minikube ip) projadadevops.local' >> /etc/hosts"
+sudo bash -c "echo '$(minikube ip) registry.local' >> /etc/hosts"
+
+sudo vim /etc/docker/daemon.json
+{
+  "insecure-registries" : ["registry.local:5000"]
+}
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+docker compose -f docker-compose.yml build --no-cache
+
+docker tag adadevopsmod3-baseapp:latest registry.local:5000/adadevopsmod3:baseapp
+
+docker push registry.local:5000/adadevopsmod3:baseapp
+
+minikube kubectl -- apply -f deploycompleto.yaml
+
+minikube kubectl -- config set-context --current --namespace=nsadadevopsmod3
+
+minikube kubectl -- get pods
+
+
+minikube kubectl -- logs -f $(minikube kubectl -- get pods | grep criaamb | cut -d' ' -f1)
+minikube kubectl -- logs -f $(minikube kubectl -- get pods | grep producerapp | cut -d' ' -f1)
+minikube kubectl -- logs -f $(minikube kubectl -- get pods | grep consumer | cut -d' ' -f1)
+
+
+
+sudo vim /etc/docker/daemon.json
+{
+  "insecure-registries" : ["registry.local:5000"]
+}
+
+sudo jq '.["insecure-registries"] += ["new-registry:5000"]' /etc/docker/daemon.json
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+kubectl get service --namespace kube-system
+
+## Acessar containers
+
+kubectl proxy --address localhost --port=8081
+
+RabbitMQ: http://localhost:8081/api/v1/namespaces/nsadadevopsmod3/services/rabbitmq-service:15672/proxy/
+Redis: http://localhost:8081/api/v1/namespaces/nsadadevopsmod3/services/redis-service:8001/proxy/
+Minio: http://localhost:8081/api/v1/namespaces/nsadadevopsmod3/services/minio-service:9001/proxy/
+Dashboard: http://localhost:8081/api/v1/namespaces/kubernetes-dashboard/services/http:kubernetes-dashboard:/proxy/#/workloads?namespace=nsadadevopsmod3
+
+#Montar Imagens
+docker compose -f docker-compose.yml build --no-cache
+docker images | egrep "adadevopsmod3|REPOSITORY"
+
+docker tag adadevopsmod3-producerapp:latest registry.local:5000/adadevopsmod3:producerapp
+docker tag adadevopsmod3-consumerapp:latest registry.local:5000/adadevopsmod3:consumerapp
+docker tag adadevopsmod3-criaambapp:latest registry.local:5000/adadevopsmod3:criaambapp
+docker tag adadevopsmod3-baseapp:latest registry.local:5000/adadevopsmod3:baseapp
+
+Abrir em outro terminal
+kubectl port-forward --namespace kube-system service/registry 5000:80
+
+docker push registry.local:5000/adadevopsmod3:producerapp
+docker push registry.local:5000/adadevopsmod3:consumerapp
+docker push registry.local:5000/adadevopsmod3:criaambapp
+docker push registry.local:5000/adadevopsmod3:baseapp
+
+curl -X GET http://registry.local:5000/v2/_catalog
+
+curl -X GET http://registry.local:5000/v2/adadevopsmod3/tags/list
+
+minikube ssh 
+
+curl -X GET http://localhost:5000/v2/adadevopsmod3/tags/list
+
+kubectl run nginx1 --image=localhost:5000/adadevopsmod3:criaambapp -n nsadadevopsmod3
+
+
+
+# Get commands with basic output
+minikube kubectl -- get services                                     
+minikube kubectl -- get pods -o wide                              
+minikube kubectl -- get deployment 
+minikube kubectl -- get pv 
+
+minikube kubectl -- get events
+
+minikube kubectl -- logs -f $(minikube kubectl -- get pods | grep minio | cut -d' ' -f1)
+minikube kubectl -- logs -f $(minikube kubectl -- get pods | grep redis | cut -d' ' -f1)
+minikube kubectl -- logs -f $(minikube kubectl -- get pods | grep rabbitmq | cut -d' ' -f1)
+
+
+minikube kubectl -- logs -f $(minikube kubectl -- get pods | grep criaamb | cut -d' ' -f1)
+minikube kubectl -- logs -f $(minikube kubectl -- get pods | grep producerapp | cut -d' ' -f1)
+minikube kubectl -- logs -f $(minikube kubectl -- get pods | grep consumer | cut -d' ' -f1)
+
+minikube kubectl get all
+
+kubectl exec -it $(minikube kubectl -- get pods | grep criaamb | cut -d' ' -f1) -n nsadadevopsmod3 -- /bin/sh
+
+
+
+/bin/sh -c "nc -z minio-service 9000 && nc -z redis-service 6379 && nc -z rabbitmq-service 5672"
+
+
+Revalidar docker-env
+'minikube -p minikube docker-env'
+
+Apontar para o HOST mesmo dentro do minikube
+eval $(minikube -p minikube docker-env --ssh-host)
+
+
+
+kubectl get pvc -n nsadadevopsmod3 python-files-pvc
+kubectl get pv python-files-pv
+
+
+curl -s -o /dev/null -w "%{http_code}" http://minio-service:9000/minio/health/live
+
+
+curl -s -o /dev/null -w '%{http_code}' -u admin:admin1234 http://rabbitmq-service:15672/api/healthchecks/node
+
+
+http://projadadevops.local/minioapi/reportes-antifraude/relatorio_fraude_123abc_2024_03_31_23_51_18.txt
+
+http://10.109.65.205:9000/reportes-antifraude/relatorio_fraude_901stu_2024_03_20_01_20_55.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=admin%2F20240425%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20240425T121619Z&X-Amz-Expires=604800&X-Amz-SignedHeaders=host&X-Amz-Signature=a61cccf0b1557146d07e7bde4468441b20fcfb2718b4ef50488aa9497b2266dd
+
+http://10.109.46.149:9000/reportes-antifraude/relatorio_fraude_123abc_2024_03_31_23_51_18.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=admin%2F20240425%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20240425T132827Z&X-Amz-Expires=604800&X-Amz-SignedHeaders=host&X-Amz-Signature=e4404709b6ffd8cbf4bf33a439321fd1e4c422cc33d9edcac82a2bdbb1097c73
+
+
+http://projadadevops.local/minioapi/reportes-antifraude/relatorio_fraude_def4567_2024_04_06_20_16_27.txt

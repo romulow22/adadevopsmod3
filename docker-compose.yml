@@ -1,0 +1,22 @@
+version: "3.8"
+services:
+  baseapp:
+    build:
+      context: ./dockerfiles
+      dockerfile: baseapp.dockerfile
+    container_name: baseapp
+  criaambapp:
+    build:
+      context: ./dockerfiles
+      dockerfile: criaambapp.dockerfile
+    container_name: criaambapp
+  producerapp:
+    build:
+      context: ./dockerfiles
+      dockerfile: producerapp.dockerfile
+    container_name: producerapp
+  consumerapp:
+    build:
+      context: ./dockerfiles
+      dockerfile: consumerapp.dockerfile
+    container_name: consumerapp

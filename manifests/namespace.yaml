@@ -1,0 +1,5 @@
+# Criando namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nsadadevopsmod3

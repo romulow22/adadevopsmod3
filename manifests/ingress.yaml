@@ -1,0 +1,41 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: nsadadevopsmod3
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  rules:
+  - host: projadadevops.local
+    http:
+      paths:
+      - path: "/rabbitmq"
+        pathType: Prefix
+        backend:
+          service:
+            name: rabbitmq-service
+            port:
+              number: 15672
+      - path: "/redis"
+        pathType: Prefix
+        backend:
+          service:
+            name: redis-service
+            port:
+              number: 8001
+      - path: "/minio"
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-service
+            port:
+              number: 9001
+      - path: "/minioapi(/|$)(.*)"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: minio-service
+            port:
+              number: 9000

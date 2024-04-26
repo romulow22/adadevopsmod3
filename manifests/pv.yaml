@@ -1,0 +1,14 @@
+# Criando PV para os arquivos Python
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: python-files-pv
+spec:
+  capacity:
+    storage: 50Mi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: standard
+  hostPath:
+    path: /adadevopsmod3/app

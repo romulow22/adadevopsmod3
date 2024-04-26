@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: criaambapp-job
+  namespace: nsadadevopsmod3
+  labels:
+    app: criaambapp
+spec:
+  template:
+    metadata:
+      labels:
+        app: criaambapp
+    spec:
+      initContainers:
+      - name: wait-for-minio
+        image: curlimages/curl
+        command: ["sh", "-c", "until $(curl -s -o /dev/null -w '%{http_code}' http://minio-service:9000/minio/health/live | grep -q 200); do echo waiting for minio-service; sleep 5; done"]
+      - name: wait-for-rabbitmq
+        image: curlimages/curl
+        command: ["sh", "-c", "until $(curl -s -o /dev/null -u $(echo -n $RABBITMQ_ROOT_USR:$RABBITMQ_ROOT_PWD) -w '%{http_code}' http://rabbitmq-service:15672/api/healthchecks/node | grep -q 200); do echo waiting for rabbitmq-service; sleep 5; done"]
+        envFrom:
+        - secretRef:
+            name: rabbitmq-credentials
+      - name: wait-for-redis
+        image: redis:alpine
+        command: ['sh', '-c', 'until $(redis-cli -h redis-service ping | grep -q PONG); do echo waiting for redis-service; sleep 5; done']
+      containers:
+      - name: criaambapp
+        image: localhost:5000/adadevopsmod3:baseapp
+        command: ["python3", "/appfiles/criaamb.py"]
+        #command: ["/bin/bash", "-c", "tail -f /dev/null"]
+        envFrom:
+        - secretRef:
+            name: minio-credentials
+        - secretRef:
+            name: rabbitmq-credentials
+        volumeMounts:
+        - name: python-files-volume
+          mountPath: /appfiles
+      restartPolicy: Never
+      volumes:
+      - name: python-files-volume
+        persistentVolumeClaim:
+          claimName: python-files-pvc
