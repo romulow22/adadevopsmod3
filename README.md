@@ -112,7 +112,8 @@ sudo docker compose build --no-cache --push
 * Deploy do ambiente
 
 ```  
-minikube kubectl -- apply -f deploycompleto.yml
+find ./templates -name '*.yml' -exec minikube kubectl -- apply -f {} \;
+
 ``` 
 
 * Configurar o contexto do namespace criado
@@ -178,6 +179,7 @@ curl -X GET http://registry.local:5000/v2/adadevopsmod3/tags/list
 5. Remover o laboratório.  
 
 ```
+find ./templates -name '*.yml' -exec minikube kubectl -- delete -f {} \;
 minikube delete --all
 sudo docker rmi -f $(sudo docker images --format '{{.Repository}}:{{.Tag}}'| grep adadevopsmod3)
 cd..

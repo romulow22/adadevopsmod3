@@ -4,10 +4,19 @@ metadata:
   name: python-files-pv
 spec:
   capacity:
-    storage: 50Mi
+    storage: 100Mi
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   storageClassName: standard
-  hostPath:
+  #hostPath:
+  local:
     path: /adadevopsmod3/app
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - minikube
