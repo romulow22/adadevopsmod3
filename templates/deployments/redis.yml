@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-deployment
+  namespace: nsadadevopsmod3
+  labels:
+      app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis/redis-stack:7.2.0-v10
+        ports:
+        - containerPort: 6379
+        - containerPort: 8001
+        env:
+          - name: REDIS_ARGS
+            value: "--save 60 1000 --appendonly yes"
+          - name: REDISTIMESERIES_ARGS
+            value: "RETENTION_POLICY=20"
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        startupProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        resources:
+          limits:
+            memory: 256Mi
+            cpu: "0.4"
+          requests:
+            memory: 128Mi
+            cpu: "0.2"
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: redis-pvc

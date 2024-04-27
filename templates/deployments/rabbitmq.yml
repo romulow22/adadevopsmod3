@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq-deployment
+  namespace: nsadadevopsmod3
+  labels:
+    app: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3-management
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672
+        env:
+          - name:  RABBITMQ_DEFAULT_USER
+            valueFrom:
+              secretKeyRef:
+                name:  rabbitmq-credentials
+                key:  RABBITMQ_ROOT_USR
+          - name:  RABBITMQ_DEFAULT_PASS
+            valueFrom:
+              secretKeyRef:
+                name:  rabbitmq-credentials
+                key:  RABBITMQ_ROOT_PWD
+        volumeMounts:
+        - name: rabbitmq-config
+          mountPath: /etc/rabbitmq/rabbitmq.conf
+          subPath: rabbitmq.conf
+        - name: rabbitmq-data
+          mountPath: /var/lib/rabbitmq/
+        startupProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - rabbitmq-diagnostics ping -q
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        resources:
+          limits:
+            memory: 256Mi
+            cpu: "0.4"
+          requests:
+            memory: 128Mi
+            cpu: "0.2"
+      volumes:
+      - name: rabbitmq-config
+        configMap:
+          name: rabbitmq-configmap
+      - name: rabbitmq-data
+        persistentVolumeClaim:
+          claimName: rabbitmq-pvc

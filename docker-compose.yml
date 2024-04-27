@@ -1,22 +1,26 @@
 version: "3.8"
 services:
   baseapp:
+    image: registry.local:5000/adadevopsmod3:baseapp
     build:
-      context: ./dockerfiles
-      dockerfile: baseapp.dockerfile
+      context: ./
+      dockerfile: dockerfiles/baseapp.dockerfile
     container_name: baseapp
   criaambapp:
+    image: registry.local:5000/adadevopsmod3:criaambapp
     build:
-      context: ./dockerfiles
-      dockerfile: criaambapp.dockerfile
+      context: ./
+      dockerfile: dockerfiles/criaambapp.dockerfile
     container_name: criaambapp
   producerapp:
+    image: registry.local:5000/adadevopsmod3:producerapp
     build:
-      context: ./dockerfiles
-      dockerfile: producerapp.dockerfile
+      context: ./
+      dockerfile: dockerfiles/producerapp.dockerfile
     container_name: producerapp
   consumerapp:
+    image: registry.local:5000/adadevopsmod3:consumerapp
     build:
-      context: ./dockerfiles
-      dockerfile: consumerapp.dockerfile
+      context: ./
+      dockerfile: dockerfiles/consumerapp.dockerfile
     container_name: consumerapp

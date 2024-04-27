@@ -5,9 +5,9 @@ FROM python:3.12-slim-bookworm
 WORKDIR /app
 
 # Copia o arquivo requirements.txt para o diretório de trabalho
-COPY requirements.txt .
+COPY ./dockerfiles/requirements.txt .
 
-COPY ./app/* .
+COPY ./app/criaamb.py .
 
 # Instala as dependências do projeto
 RUN pip install --no-cache-dir -r requirements.txt

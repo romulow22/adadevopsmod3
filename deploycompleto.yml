@@ -53,10 +53,10 @@ metadata:
   namespace: nsadadevopsmod3
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi
+      storage: 500Mi
 
 ---
 apiVersion: v1
@@ -66,10 +66,10 @@ metadata:
   namespace: nsadadevopsmod3
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi
+      storage: 500Mi
 
 ---
 apiVersion: v1
@@ -82,7 +82,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi
+      storage: 500Mi
 
 ---
 # Criando RabbitMQ Deployment
@@ -238,8 +238,8 @@ spec:
         - name: minio-data
           mountPath: /data
         env:
-        - name: MINIO_BROWSER_REDIRECT_URL
-          value: "http://projadadevops.local/minioapi/"
+#        - name: MINIO_BROWSER_REDIRECT_URL
+#          value: "http://projadadevops.local/"
         - name: MINIO_ROOT_USER
           valueFrom:
             secretKeyRef:
@@ -329,7 +329,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: ingress
+  name: rabbitmq-ingress
   namespace: nsadadevopsmod3
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$2
@@ -338,22 +338,48 @@ spec:
   - host: projadadevops.local
     http:
       paths:
-      - path: "/rabbitmq"
-        pathType: Prefix
+      - path: "/rabbitmq(/|$)(.*)"
+        pathType: ImplementationSpecific
         backend:
           service:
             name: rabbitmq-service
             port:
               number: 15672
-      - path: "/redis"
-        pathType: Prefix
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: redis-ingress
+  namespace: nsadadevopsmod3
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  rules:
+  - host: projadadevops.local
+    http:
+      paths:
+      - path: "/redis(/|$)(.*)"
+        pathType: ImplementationSpecific
         backend:
           service:
             name: redis-service
             port:
               number: 8001
-      - path: "/minio"
-        pathType: Prefix
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-ingress
+  namespace: nsadadevopsmod3
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  rules:
+  - host: projadadevops.local
+    http:
+      paths:
+      - path: "/minio(/|$)(.*)"
+        pathType: ImplementationSpecific
         backend:
           service:
             name: minio-service
@@ -380,7 +406,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: standard
   hostPath:
-    path: /adadevopsmod3/dockerfiles/app
+    path: /adadevopsmod3/app
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

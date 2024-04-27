@@ -57,8 +57,8 @@ Há também configurações de atraso inicial para probes, limites de recursos e
 - VM linux 2 CPU / 4GB RAM
 - OS RHEL 9.3
 - docker 26.0.1
-- docker compose
-- git
+- docker compose 2.26.1
+- git 2.39.3
 - minikube v.1.33.0
 
 ## Instruções
@@ -71,7 +71,7 @@ git clone https://github.com/romulow22/adadevopsmod3.git
 
 2. Preparar o ambiente
 
-* Incluir os fqdns no /etc/hosts
+* Incluir os fqdns em /etc/hosts
 
 ```
 sudo bash -c "echo '$(minikube ip) projadadevops.local' >> /etc/hosts"
@@ -106,18 +106,17 @@ minikube start --addons=registry,ingress --driver=docker --dns-domain='projadade
 * Build das images e push para o registry
 
 ```  
-sudo docker compose -f docker-compose.yml up -d --build
-sudo docker tag adadevopsmod3-baseapp:latest registry.local:5000/adadevopsmod3:baseapp
-sudo docker push registry.local:5000/adadevopsmod3:baseapp
+sudo docker compose build --no-cache --push
 ```  
 
 * Deploy do ambiente
 
 ```  
-minikube kubectl -- apply -f deploycompleto.yaml
+minikube kubectl -- apply -f deploycompleto.yml
 ``` 
 
 * Configurar o contexto do namespace criado
+
 ```  
 minikube kubectl -- config set-context --current --namespace=nsadadevopsmod3
 ```  
@@ -136,7 +135,6 @@ minikube kubectl -- logs -f $(minikube kubectl -- get pods | grep producerapp | 
 minikube kubectl -- logs -f $(minikube kubectl -- get pods | grep consumer | cut -d' ' -f1)
 ``` 
 
-
 4. Opções Extras para troubleshoot
 
 * Acessar Dashboards
@@ -149,11 +147,17 @@ minikube dashboard --url
 
 * Acessar pelo browser as ferramentas
 
+1a forma:
 ``` 
 kubectl proxy --address localhost --port=8081
 RabbitMQ: http://localhost:8081/api/v1/namespaces/nsadadevopsmod3/services/rabbitmq-service:15672/proxy/
 Redis: http://localhost:8081/api/v1/namespaces/nsadadevopsmod3/services/redis-service:8001/proxy/
 Minio: http://localhost:8081/api/v1/namespaces/nsadadevopsmod3/services/minio-service:9001/proxy/
+``` 
+
+   2a Forma:
+``` 
+minikube service -n nsadadevopsmod3 --all
 ``` 
 
 * Acessar por curl as ferramentas
@@ -175,5 +179,7 @@ curl -X GET http://registry.local:5000/v2/adadevopsmod3/tags/list
 
 ```
 minikube delete --all
-sudo docker rmi $(sudo docker images --format '{{.Repository}}:{{.Tag}}'| grep adadevopsmod3)
+sudo docker rmi -f $(sudo docker images --format '{{.Repository}}:{{.Tag}}'| grep adadevopsmod3)
+cd..
+sudo rm -r adadevopsmod3
 ``` 

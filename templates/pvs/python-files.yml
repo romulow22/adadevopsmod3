@@ -1,4 +1,3 @@
-# Criando PV para os arquivos Python
 apiVersion: v1
 kind: PersistentVolume
 metadata:
