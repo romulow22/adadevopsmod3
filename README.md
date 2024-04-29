@@ -156,7 +156,7 @@ Redis: http://localhost:8081/api/v1/namespaces/nsadadevopsmod3/services/redis-se
 Minio: http://localhost:8081/api/v1/namespaces/nsadadevopsmod3/services/minio-service:9001/proxy/
 ``` 
 
-   2a Forma:
+2a Forma:
 ``` 
 minikube service -n nsadadevopsmod3 --all
 ``` 
